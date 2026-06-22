@@ -8,6 +8,7 @@ use App\Services\Chat\ChatServiceInterface;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class ChatInterface extends Component
 {
@@ -138,7 +139,7 @@ class ChatInterface extends Component
             foreach ($service->stream($userText, $history, $this->session->model, $fileData) as $chunk) {
                 $fullContent .= $chunk;
                 $this->streamingMessageContent = $fullContent;
-                $this->stream('streamedContent', $fullContent);
+                $this->stream('streamedContent', Str::markdown($fullContent));
             }
 
             $assistantMessage->update([
@@ -218,7 +219,7 @@ class ChatInterface extends Component
             foreach ($service->stream($userMsg->content, $history, $this->session->model) as $chunk) {
                 $fullContent .= $chunk;
                 $this->streamingMessageContent = $fullContent;
-                $this->stream('streamedContent', $fullContent);
+                $this->stream('streamedContent', Str::markdown($fullContent));
             }
 
             $newAssistantMsg->update([

@@ -19,8 +19,8 @@
                         @endforeach
                     </div>
                     @endif
-                    <div class="rounded-2xl px-3 py-0 text-sm leading-relaxed whitespace-pre-wrap break-words max-w-none {{ $msg->role === 'user' ? 'bg-blue-700 rounded-tr-sm' : 'bg-gray-800 rounded-tl-sm' }}">
-                        {{ $msg->content }}
+                    <div class="rounded-2xl px-3 py-2 text-sm leading-relaxed prose prose-invert max-w-none break-words {{ $msg->role === 'user' ? 'bg-blue-700 rounded-tr-sm prose-headings:text-white prose-strong:text-white prose-code:text-blue-300 prose-a:text-blue-300' : 'bg-gray-800 rounded-tl-sm' }}">
+                        {!! Str::markdown($msg->content) !!}
                     </div>
                     @if($msg->role === 'assistant' && !$msg->is_streaming)
                         <div class="flex items-center gap-1 mt-1 ml-2 opacity-0 hover:opacity-100 transition-opacity">
