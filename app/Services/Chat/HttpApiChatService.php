@@ -15,10 +15,14 @@ class HttpApiChatService implements ChatServiceInterface
         $this->apiKey = config('services.gemini.key') ?? env('GEMINI_API_KEY');
     }
 
-    public function stream(string $prompt, array $history, string $model): \Generator
+    public function stream(string $prompt, array $history, string $model, array $files = []): \Generator
     {
         $messages = $this->formatHistory($history);
-        $messages[] = ['role' => 'user', 'parts' => [['text' => $prompt]]];
+        $userParts = [['text' => $prompt]];
+        foreach ($files as $file) {
+            $userParts[] = ['inlineData' => ['mimeType' => $file['mime_type'], 'data' => $file['data']]];
+        }
+        $messages[] = ['role' => 'user', 'parts' => $userParts];
 
         $response = Http::withHeaders([
             'Content-Type' => 'application/json',
@@ -68,7 +72,7 @@ class HttpApiChatService implements ChatServiceInterface
         }
     }
 
-    public function complete(string $prompt, array $history, string $model): string
+    public function complete(string $prompt, array $history, string $model, array $files = []): string
     {
         $messages = $this->formatHistory($history);
         $messages[] = ['role' => 'user', 'parts' => [['text' => $prompt]]];
@@ -112,9 +116,15 @@ class HttpApiChatService implements ChatServiceInterface
         foreach ($history as $msg) {
             if (in_array($msg['role'], ['user', 'assistant'])) {
                 $role = $msg['role'] === 'assistant' ? 'model' : 'user';
+                $parts = [['text' => $msg['content']]];
+                if (!empty($msg['files'])) {
+                    foreach ($msg['files'] as $file) {
+                        $parts[] = ['text' => "[File: {$file['name']}]"];
+                    }
+                }
                 $formatted[] = [
                     'role' => $role,
-                    'parts' => [['text' => $msg['content']]]
+                    'parts' => $parts,
                 ];
             }
         }

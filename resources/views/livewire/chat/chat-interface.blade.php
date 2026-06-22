@@ -6,6 +6,19 @@
                     {{ $msg->role === 'user' ? 'U' : 'AI' }}
                 </div>
                 <div class="max-w-[80%]">
+                    @if(!empty($msg->files))
+                    <div class="flex flex-wrap gap-2 mb-2">
+                        @foreach($msg->files as $file)
+                        <a href="{{ asset('storage/' . $file['path']) }}" target="_blank"
+                           class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-xs">
+                            <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
+                            </svg>
+                            <span class="truncate max-w-[120px]">{{ $file['name'] }}</span>
+                        </a>
+                        @endforeach
+                    </div>
+                    @endif
                     <div class="rounded-2xl px-3 py-0 text-sm leading-relaxed whitespace-pre-wrap break-words max-w-none {{ $msg->role === 'user' ? 'bg-blue-700 rounded-tr-sm' : 'bg-gray-800 rounded-tl-sm' }}">
                         {{ $msg->content }}
                     </div>
@@ -67,33 +80,63 @@
 
     <div class="border-t border-gray-700 bg-gray-800 p-4">
         <form wire:submit="sendMessage" class="flex gap-3 items-end">
-            <div class="flex-1 relative">
-                <textarea
-                    wire:model="newMessage"
-                    x-on:keydown.enter.prevent="if(!$event.shiftKey) $wire.sendMessage()"
-                    placeholder="Type your message... (Shift+Enter for new line)"
-                    rows="1"
-                    class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-xl text-gray-100 placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none transition-colors"
-                    style="min-height: 56px; max-height: 200px;"
-                    x-init="$nextTick(() => { $el.style.height = $el.scrollHeight + 'px' })"
-                    @input="if ($el) { $el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px' }"
-                ></textarea>
+            <div class="flex-1 space-y-2">
+                @if(!empty($uploadedFiles))
+                <div class="flex flex-wrap gap-2 px-1">
+                    @foreach($uploadedFiles as $index => $file)
+                    <div class="flex items-center gap-2 px-2 py-1.5 bg-gray-700 rounded-lg text-xs">
+                        <svg class="w-4 h-4 flex-shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
+                        </svg>
+                        <span class="truncate max-w-[100px]">{{ $file->getClientOriginalName() }}</span>
+                        <button type="button" wire:click="removeFile({{ $index }})" class="p-0.5 text-gray-500 hover:text-red-400 transition-colors">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                    @endforeach
+                </div>
+                @endif
+                <div class="flex gap-2 items-end">
+                    <textarea
+                        wire:model="newMessage"
+                        x-on:keydown.enter.prevent="if(!$event.shiftKey) $wire.sendMessage()"
+                        placeholder="Type a message... (Shift+Enter for new line)"
+                        rows="1"
+                        class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-xl text-gray-100 placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none transition-colors"
+                        style="min-height: 56px; max-height: 200px;"
+                        x-init="$nextTick(() => { $el.style.height = $el.scrollHeight + 'px' })"
+                        @input="if ($el) { $el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px' }"
+                    ></textarea>
+                    <div class="flex gap-1.5">
+                        <input type="file" wire:model="uploadedFiles" multiple hidden x-ref="fileInput">
+                        <button type="button"
+                                x-on:click="$refs.fileInput.click()"
+                                class="px-3 py-3 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-xl transition-colors"
+                                title="Attach files">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                            </svg>
+                        </button>
+                        <button type="submit"
+                                wire:loading.attr="disabled"
+                                class="px-5 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-xl transition-colors flex items-center gap-2">
+                            <span wire:loading.remove wire:target="sendMessage">Send</span>
+                            <span wire:loading wire:target="sendMessage" class="flex items-center gap-2">
+                                <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                                </svg>
+                                Sending
+                            </span>
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19V5m0 0l-7 7m7-7l7 7"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
             </div>
-            <button type="submit"
-                    wire:loading.attr="disabled"
-                    class="px-5 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-xl transition-colors flex items-center gap-2">
-                <span wire:loading.remove wire:target="sendMessage">Send</span>
-                <span wire:loading wire:target="sendMessage" class="flex items-center gap-2">
-                    <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
-                    </svg>
-                    Sending
-                </span>
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19V5m0 0l-7 7m7-7l7 7"/>
-                </svg>
-            </button>
         </form>
 
         <p class="text-xs text-gray-500 mt-2 text-center">

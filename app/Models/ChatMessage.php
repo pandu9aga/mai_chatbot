@@ -12,11 +12,13 @@ class ChatMessage extends Model
         'chat_session_id',
         'role',
         'content',
+        'files',
         'metadata',
         'is_streaming',
     ];
 
     protected $casts = [
+        'files' => 'array',
         'metadata' => 'array',
         'is_streaming' => 'boolean',
         'created_at' => 'datetime',

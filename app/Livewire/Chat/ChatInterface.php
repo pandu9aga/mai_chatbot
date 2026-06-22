@@ -6,28 +6,83 @@ use App\Models\ChatMessage;
 use App\Models\ChatSession;
 use App\Services\Chat\ChatServiceInterface;
 use Livewire\Component;
+use Livewire\WithFileUploads;
+use Illuminate\Support\Facades\Storage;
 
 class ChatInterface extends Component
 {
+    use WithFileUploads;
+
     public ChatSession $session;
     public string $newMessage = '';
     public bool $isStreaming = false;
     public string $streamedContent = '';
     public string $streamingMessageContent = '';
+    public array $uploadedFiles = [];
+
+    protected function rules()
+    {
+        return [
+            'uploadedFiles.*' => 'file|max:10240|mimes:jpg,jpeg,png,gif,webp,heic,heif,pdf,mp3,wav,ogg,mp4,mov,avi,csv,json,txt,xml,html,js,ts,css,md,py,rtf',
+        ];
+    }
 
     public function mount(ChatSession $session): void
     {
         $this->session = $session->load('messages');
     }
 
+    public function updatedUploadedFiles(): void
+    {
+        $this->validate();
+    }
+
+    public function removeFile(int $index): void
+    {
+        if (isset($this->uploadedFiles[$index])) {
+            unset($this->uploadedFiles[$index]);
+            $this->uploadedFiles = array_values($this->uploadedFiles);
+        }
+    }
+
     public function sendMessage(): void
     {
-        if (empty(trim($this->newMessage)) || $this->isStreaming) {
+        if ((empty(trim($this->newMessage)) && empty($this->uploadedFiles)) || $this->isStreaming) {
             return;
         }
 
         $userText = trim($this->newMessage);
         $this->newMessage = '';
+
+        $filesMetadata = [];
+        $fileData = [];
+        foreach ($this->uploadedFiles as $file) {
+            $originalName = $file->getClientOriginalName();
+            $mimeType = $file->getMimeType();
+            $size = $file->getSize();
+
+            $storePath = 'uploads/chat/' . $this->session->id . '/' . uniqid() . '_' . $originalName;
+            $file->storeAs(
+                dirname($storePath),
+                basename($storePath),
+                ['disk' => 'public']
+            );
+
+            $filesMetadata[] = [
+                'name' => $originalName,
+                'size' => $size,
+                'mime_type' => $mimeType,
+                'path' => $storePath,
+            ];
+
+            $fullPath = Storage::disk('public')->path($storePath);
+            $fileData[] = [
+                'mime_type' => $mimeType,
+                'data' => base64_encode(file_get_contents($fullPath)),
+            ];
+        }
+        $this->uploadedFiles = [];
+
         $this->isStreaming = true;
         $this->streamedContent = '';
         $this->streamingMessageContent = '';
@@ -36,12 +91,13 @@ class ChatInterface extends Component
             'chat_session_id' => $this->session->id,
             'role' => 'user',
             'content' => $userText,
+            'files' => $filesMetadata,
         ]);
 
         $this->session->update(['updated_at' => now()]);
         $this->session->load('messages');
 
-        if ($this->session->title === 'New Chat' && strlen($userText) > 0) {
+        if ($this->session->title === 'New Chat' && !empty($userText)) {
             $words = explode(' ', strip_tags($userText));
             $title = implode(' ', array_slice($words, 0, 8));
             $this->session->update([
@@ -67,6 +123,7 @@ class ChatInterface extends Component
             ->map(fn($m) => [
                 'role' => $m->role,
                 'content' => $m->content,
+                'files' => $m->files ?? [],
             ])
             ->toArray();
 
@@ -78,7 +135,7 @@ class ChatInterface extends Component
 
             $fullContent = '';
 
-            foreach ($service->stream($userText, $history, $this->session->model) as $chunk) {
+            foreach ($service->stream($userText, $history, $this->session->model, $fileData) as $chunk) {
                 $fullContent .= $chunk;
                 $this->streamingMessageContent = $fullContent;
                 $this->stream('streamedContent', $fullContent);
@@ -137,6 +194,7 @@ class ChatInterface extends Component
             ->map(fn($m) => [
                 'role' => $m->role,
                 'content' => $m->content,
+                'files' => $m->files ?? [],
             ])
             ->toArray();
 
