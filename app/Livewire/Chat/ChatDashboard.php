@@ -54,7 +54,7 @@ class ChatDashboard extends Component
                 $group = 'Today';
             } elseif ($date->isYesterday()) {
                 $group = 'Yesterday';
-            } elseif ($date->isThisWeek()) {
+            } elseif ($date->greaterThanOrEqualTo(now()->startOfWeek()->copy())) {
                 $group = 'This Week';
             } else {
                 $group = 'Older';
